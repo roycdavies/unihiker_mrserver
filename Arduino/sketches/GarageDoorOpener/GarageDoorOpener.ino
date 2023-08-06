@@ -20,18 +20,18 @@
 // ----------------------------------------------------------------------------------------------------
 
 // General Settings
-#define DEBUG           false
+#define DEBUG           true
 
 // A couple of Wifi settings to try
-#define SSID1           "DaviesNetSub"
-#define SSID1PASS       "6ddf9f9ce4"
+#define SSID1           "PB300693"
+#define SSID1PASS       "87362243"
 #define SSID2           "DaviesNetSub"
 #define SSID2PASS       "6ddf9f9ce4"
 #define SSID3           "DaviesNetSub"
 #define SSID3PASS       "6ddf9f9ce4"
 
 // The domain name or IP address of the MRServer
-#define MRSERVERNAME    "192.168.1.252"
+#define MRSERVERNAME    "192.168.123.1"
 
 // Login details for the MRServer
 #define USEREMAIL       "roy@imersia.com"
@@ -43,15 +43,15 @@
 #define TOKEN           "Arduino"
 
 // Geobot to wotch
-#define GEOBOTID        "72b8e514-3ae7-11e9-8b2c-9679fd07d64f" //"ab695e9e-3ccb-11e9-b39a-96798b53b2fa"
+#define GEOBOTID        "a10ba25c-e8b1-11ea-b1e6-6474f696ef8e" //"ab695e9e-3ccb-11e9-b39a-96798b53b2fa"
 
 // Pins for the door controller and switches
-#define PINCONTROL      D7
+#define PINCONTROL      D5
 #define PINOPEN         D6
-#define PINCLOSED       D5
+#define PINCLOSED       D7
 
 // Trigger to respond to
-#define TRIGGEREVENT    "press"
+#define TRIGGEREVENT    "click"
 #define TRIGGEREVENT_LEN  5
 
 // A couple of useful functions
@@ -613,7 +613,7 @@ bool getSessionID ()
   client->setTimeout(30000);
   HTTPClient https;
   
-  char * url = "https://" MRSERVERNAME "/api/sessions";
+  char const * url = "https://" MRSERVERNAME "/api/sessions";
 
   // Begin talking to the MRServer
   if (https.begin (*client, url))
@@ -633,15 +633,17 @@ bool getSessionID ()
     {
       // HTTP header has been sent and Server response header has been handled
 
-      String payload = https.getString ();      
+      String payload = https.getString ();
       if (httpCode == HTTP_CODE_OK)
       {
         const size_t capacity = JSON_OBJECT_SIZE(1) + 72;
-        StaticJsonBuffer<capacity> jsonBuffer;
+        StaticJsonDocument<capacity> root;
         
-        JsonObject& root = jsonBuffer.parseObject(payload.c_str());
+        // JsonObject root = jsonBuffer.parseObject(payload.c_str());
+        deserializeJson(root, payload.c_str());
 
-        if (root.success())
+        Serial.printf(payload.c_str());
+        if (root["sessionid"])
         {
           if (sessionID == NULL) sessionID = new char[37];
           sessionID = strcpy (sessionID, root["sessionid"]);
@@ -656,7 +658,8 @@ bool getSessionID ()
     }
     else
     {
-      Serial.printf (" ERROR: %s\n", https.errorToString (httpCode).c_str());
+      Serial.printf (" ERROR: %d %s\n", httpCode, https.errorToString (httpCode).c_str());
+      // queue_event (DISCONNECT_WIFI);
     }
 
     https.end();
@@ -686,7 +689,7 @@ bool getUserID ()
   client->setTimeout(30000);
   HTTPClient https;
   
-  char * url = "https://" MRSERVERNAME "/api/user";
+  char const * url = "https://" MRSERVERNAME "/api/user";
 
   // Begin talking to the MRServer
   if (https.begin (*client, url))
@@ -809,7 +812,9 @@ void openWebSocket ()
   char url[50];
   strcpy(url, "/wotcha/");
   strcat(url, userID);
-  webSocket.begin(MRSERVERNAME, 80, url);
+  Serial.printf(MRSERVERNAME);
+  Serial.printf(url);
+  webSocket.begin(MRSERVERNAME, 90, url);
 
   // event handler
   webSocket.onEvent(webSocketEvent);
@@ -826,23 +831,24 @@ void openWebSocket ()
 // ----------------------------------------------------------------------------------------------------
 // Send websocket event
 // ----------------------------------------------------------------------------------------------------
-void webSocketSend (char *event)
+void webSocketSend (char const *event)
 {
   Serial.printf ("Sending event %s ...", event);
 
   const size_t capacity = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(4) + 113;
-  DynamicJsonBuffer jsonBuffer(capacity);
+  DynamicJsonDocument root(capacity);
   
-  JsonObject& root = jsonBuffer.createObject();
+  // JsonObject& root = jsonBuffer.createObject();
   root["sessionid"] = sessionID;
   root["command"] = "event";
-  JsonObject& parameters = root.createNestedObject("parameters");
+  JsonObject parameters = root.createNestedObject("parameters");
   parameters["id"] = GEOBOTID;
   parameters["event"] = event;
-//  JsonObject& eventparameters = parameters.createNestedObject("parameters");
+  // JsonObject& eventparameters = parameters.createNestedObject("parameters");
   // Send the message
   String webSocketMessage;
-  root.printTo(webSocketMessage);
+  // root.printTo(webSocketMessage);
+  serializeJson(root, webSocketMessage);
   webSocket.sendTXT(webSocketMessage);
   Serial.printf(" OK\n");
 }
@@ -856,17 +862,18 @@ void webSocketSend (char *event)
 void wotchGeobot ()
 {
   const size_t capacity = JSON_OBJECT_SIZE(1) + JSON_OBJECT_SIZE(3) + 113;
-  DynamicJsonBuffer jsonBuffer(capacity);
+  DynamicJsonDocument root(capacity);
   
-  JsonObject& root = jsonBuffer.createObject();
+  // JsonObject& root = jsonBuffer.createObject();
   root["sessionid"] = sessionID;
   root["command"] = "wotcha";
-  JsonObject& parameters = root.createNestedObject("parameters");
+  JsonObject parameters = root.createNestedObject("parameters");
   parameters["id"] = GEOBOTID;
   // Wotch the geobot of interest
   Serial.printf("Wotching Geobot ...");
   String webSocketMessage;
-  root.printTo(webSocketMessage);
+  // root.printTo(webSocketMessage);
+  serializeJson(root, webSocketMessage);
   webSocket.sendTXT(webSocketMessage);
   Serial.printf(" OK: " GEOBOTID "\n");
 }
