@@ -10,6 +10,12 @@ import threading
 import ifaddr
 import ssl
 import websocket
+import serial.tools.list_ports as port_list
+import serial
+import time
+import re
+import pygeohash
+from pyubx2 import UBXReader    # https://pypi.org/project/pyubx2/
 
 from api import *
 from fsm import *
@@ -30,10 +36,13 @@ running = True
 lighton = True
 messageGUI = ""
 stateGUI = ""
+gpsGUI = ""
 qrcode = ""
 qrcode_text = ""
 geobotid1 = "a10ba25c-e8b1-11ea-b1e6-6474f696ef8e"
 geobotid2 = "8de3d445-112f-11ee-913c-7cf01f83542a"
+gps_serial_port = None
+prev_geohash = ""
 server = {
     "apiurl": "https://localhost/api",
     "sessionid": "",
@@ -50,7 +59,8 @@ wifi_password = ""
 
 # Set the GUI
 gui = GUI()
-stateGUI = gui.draw_text(x=120, y=10, text="", origin="n" )
+stateGUI = gui.draw_text(x=120, y=0, text="", origin="n" )
+gpsGUI = gui.draw_text(x=120, y=20, text="", origin="n" )
 
 ssl_context = ssl.SSLContext()
 ssl_context.verify_mode = ssl.CERT_NONE
@@ -69,6 +79,42 @@ MRServer = Automation()
 # ====================================================================================================
 # Service functions
 # ====================================================================================================
+
+
+# ----------------------------------------------------------------------------------------------------
+# Extract Latitude and Longitude from the GPS string
+# ----------------------------------------------------------------------------------------------------
+def extract_lat_lon(input_str):
+    pattern = r'lat=(-?\d+\.\d+),\s*NS=([NS]),\s*lon=(-?\d+\.\d+),\s*EW=([EW])'
+    match = re.search(pattern, input_str)
+
+    if match:
+        latitude = float(match.group(1))
+        longitude = float(match.group(3))
+
+        return (latitude, longitude)
+
+    return (None, None)  # Return None if the input doesn't match the expected format
+# ----------------------------------------------------------------------------------------------------
+
+
+
+# ----------------------------------------------------------------------------------------------------
+# Determine if the serial port has a GPS unit, and if so, what port it is on
+# ----------------------------------------------------------------------------------------------------
+def extract_serial_port(ports):
+    for p in ports:
+        # Check if the port contains the keyword "GPS"
+        if "GPS" in str(p):
+            # Use regular expression to extract the serial port information
+            serial_port_match = re.search(r'/dev/tty\w+', str(p))
+            if serial_port_match:
+                return serial_port_match.group()
+    
+    return None  # Return None if it's not a GPS unit or no serial port found
+# ----------------------------------------------------------------------------------------------------
+
+
 
 # ----------------------------------------------------------------------------------------------------
 # Generate a QR Code string for the hotspot
@@ -431,6 +477,13 @@ MRServer.add(Transition("*",                "clear",            "*",            
 MRServer.add(Transition("*",                "b_button",         "quitting",         ["Quitting...", printout, check_mrserver, stop_mrserver, quit]))
 # ----------------------------------------------------------------------------------------------------
 
+# Open the serial port for the GPS unit
+gps_serial_port = extract_serial_port(list(port_list.comports()))
+print(list(port_list.comports()))
+
+if (gps_serial_port != None):  
+    s = serial.Serial(gps_serial_port, 9600)
+    ubr = UBXReader(s)
 
 # Initialise various things
 initialise()
@@ -442,6 +495,19 @@ MRServer.go()
 print ("Waiting for events")
 # Wait until the end
 while running:
+    if (gps_serial_port != None):
+        (raw_data, parsed_data) = ubr.read()
+        
+        (lat, lon) = extract_lat_lon(str(parsed_data))
+        if (lat != None):
+            geohash = pygeohash.encode(lat, lon)
+            if (geohash != prev_geohash):
+                gpsGUI.config(text=geohash)
+                print(lat, lon, geohash)
+                prev_geohash = geohash
+    else:
+        gpsGUI.config(text="no gps")
+            
     time.sleep(0.1)
 
 # Close down the FSM
