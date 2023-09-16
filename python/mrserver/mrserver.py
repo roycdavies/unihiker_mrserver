@@ -41,6 +41,7 @@ qrcode = ""
 qrcode_text = ""
 geobotid1 = "a10ba25c-e8b1-11ea-b1e6-6474f696ef8e"
 geobotid2 = "8de3d445-112f-11ee-913c-7cf01f83542a"
+trackedgeobot = "92ffcbea-54c6-11ee-ad48-1a9b443f7516"
 gps_serial_port = None
 prev_geohash = ""
 server = {
@@ -59,8 +60,8 @@ wifi_password = ""
 
 # Set the GUI
 gui = GUI()
-stateGUI = gui.draw_text(x=120, y=0, text="", origin="n" )
-gpsGUI = gui.draw_text(x=120, y=20, text="", origin="n" )
+stateGUI = gui.draw_text(x=120, y=0, text="", origin="n", font_size=10)
+gpsGUI = gui.draw_text(x=120, y=20, text="", origin="n", font_size=10)
 
 ssl_context = ssl.SSLContext()
 ssl_context.verify_mode = ssl.CERT_NONE
@@ -215,11 +216,11 @@ def initialise():
     gui.on_b_click(on_b_click)
 
     # Draw the original message and keep the GUI object
-    messageGUI = gui.draw_text(x=120, y=50, text="Initialising", origin="n" )
+    messageGUI = gui.draw_text(x=120, y=50, text="Initialising", origin="n", font_size=10)
     
     # Create a scannable QR code to the Geobot
     if (ipaddr == ""):
-        gui.draw_text(x=120, y=170, text="No Network", origin="n" )
+        gui.draw_text(x=120, y=170, text="No Network", origin="n", font_size=10)
     else:
         qrcode = gui.draw_qr_code(x=120, y=170, w=180, text=generate_wifi_qr_code(wifi_ssid, wifi_password), origin="center")
         qrcode_text = gui.draw_text(x=120, y=250, text="ssid: " + wifi_ssid + " pass: " + wifi_password, origin="n", font_size=10)
@@ -337,6 +338,13 @@ def send_event(event):
     # Send an event to a geobote
     POST(server, "geobots/send", {"geobotid": geobotid1}, {"event":event, "parameters":{}})
 # ----------------------------------------------------------------------------------------------------
+
+
+
+def set_geobot_position(geobotid, geohash):
+    global server
+    
+    PUT(server, "geobots", {"geobotid": geobotid}, {"location": {"geohash":geohash}})
 
 
 
@@ -503,6 +511,7 @@ while running:
             geohash = pygeohash.encode(lat, lon)
             if (geohash != prev_geohash):
                 gpsGUI.config(text=geohash)
+                set_geobot_position(trackedgeobot, geohash)
                 print(lat, lon, geohash)
                 prev_geohash = geohash
     else:
