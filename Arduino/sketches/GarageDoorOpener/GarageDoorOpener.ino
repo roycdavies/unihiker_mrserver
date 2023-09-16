@@ -105,7 +105,7 @@ int prev_door_closed = -1;
 // ----------------------------------------------------------------------------------------------------
 void setup ()
 {  
-    // Open the Serial channel if we can.
+  // Open the Serial channel if we can.
   openSerialChannel ();
   
   // Make sure we're in the starting state.
@@ -136,13 +136,15 @@ void loop ()
   }
   else
   {
-    // Grab the next event on the queue
-    events current_event = get_next_event ();
-
     // Double check the Wifi is still connected
     if ((WiFiMulti.run() != WL_CONNECTED) && (current_state >= WIFI_CONNECTED))
     {
       current_event = DISCONNECT_WIFI;
+    }
+    else
+    {
+        // Grab the next event on the queue
+        events current_event = get_next_event ();
     }
 
     // Process the event to change state
