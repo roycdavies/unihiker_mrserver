@@ -26,12 +26,13 @@ ports = list(port_list.comports())
 for p in ports:
     print (p)
     
-s = serial.Serial('/dev/ttyACM0', 9600)
+s = serial.Serial('/dev/ttyACM1', 9600)
 ubr = UBXReader(s)
 
 while True:
     (raw_data, parsed_data) = ubr.read()
     
+    print(str(parsed_data))
     (lat, lon) = extract_lat_lon(str(parsed_data))
     if (lat != None):
         geohash = pygeohash.encode(lat, lon)

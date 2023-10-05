@@ -31,11 +31,11 @@ while True:
     gyroy_gui.config(text="Gyro Y " + str(round(gyroscope.get_y(),2)))
     gyroz_gui.config(text="Gyro Z " + str(round(gyroscope.get_z(),2)))
     
-    if (gyroscope.get_z() > 0.1):
+    if (gyroscope.get_z() > 0.05):
         direction -= 1
         if (direction < -3):
             direction = -3
-    elif(gyroscope.get_z() < -0.1):
+    elif(gyroscope.get_z() < -0.05):
         direction += 1
         if (direction > 3):
             direction = 3

@@ -104,7 +104,9 @@ def extract_lat_lon(input_str):
 # Determine if the serial port has a GPS unit, and if so, what port it is on
 # ----------------------------------------------------------------------------------------------------
 def extract_serial_port(ports):
+    print ("Serial Ports:")
     for p in ports:
+        print(p)
         # Check if the port contains the keyword "GPS"
         if "GPS" in str(p):
             # Use regular expression to extract the serial port information
@@ -487,7 +489,6 @@ MRServer.add(Transition("*",                "b_button",         "quitting",     
 
 # Open the serial port for the GPS unit
 gps_serial_port = extract_serial_port(list(port_list.comports()))
-print(list(port_list.comports()))
 
 if (gps_serial_port != None):  
     s = serial.Serial(gps_serial_port, 9600)
